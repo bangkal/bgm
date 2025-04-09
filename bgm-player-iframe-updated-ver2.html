@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>BGM Player with Iframe</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100%;
+            width: 100%;
+        }
+        .bgm-wrapper {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999; /* 매우 높은 z-index */
+            transition: all 0.3s ease;
+            width: 130px;
+            height: 240px;
+        }
+        
+        .bgm-player {
+            background: #F6F6F6;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            width: 100px; /* 너비 줄임 */
+            transition: transform 0.3s ease;
+        }
+        .player-title {
+            margin: 0 0 10px 0;
+            font-size: 11px;
+            color: #737373;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .control-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+        .control-btn {
+            background-color: white;
+            color: #737373;
+            border: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .control-btn:hover {
+            background-color: #A5A5A5;
+            color: white;
+        }
+        .play-pause-btn .pause-icon {
+            display: none;
+        }
+        .play-pause-btn.playing .play-icon {
+            display: none;
+        }
+        .play-pause-btn.playing .pause-icon {
+            display: inline;
+        }
+        .volume-control {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            padding: 0 5px;
+            color: #A5A5A5;
+        }
+        .volume-slider {
+            width: 50px; /* 볼륨 슬라이더 너비 줄임 */
+            height: 5px;
+            -webkit-appearance: none;
+            background: #D5D5D5;
+            outline: none;
+            border-radius: 2px;
+        }
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #A5A5A5;
+            cursor: pointer;
+        }
+        .volume-slider::-moz-range-thumb {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: #D5D5D5;
+            cursor: pointer;
+        }
+        .volume-icon {
+            font-size: 8px;
+        }
+        #player {
+            display: none;
+        }
+        .song-info {
+            font-size: 9px;
+            text-align: center;
+            margin-top: 5px;
+            color: #555;
+        }
+        .player-image {
+            width: 70px; /* 이미지 크기 줄임 */
+            height: 70px; /* 이미지 크기 줄임 */
+            margin: 0 auto 10px auto; /* 중앙 정렬 */
+            display: block;
+            border-radius: 50%;
+            object-fit: cover;
+            background-position: center center;
+        }
+        
+        /* 최소화 버튼 */
+        .minimize-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: transparent;
+            border: none;
+            color: #737373;
+            cursor: pointer;
+            font-size: 10px;
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+        
+        /* 플레이어 최소화 상태 */
+        .bgm-wrapper.minimized .bgm-player {
+            display: none;
+        }
+        
+        /* 음악 버튼 (최소화 시 표시) */
+        .toggle-player {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background: #F6F6F6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 9;
+            border: none;
+            color: #737373;
+            font-size: 16px;
+            display: none;
+        }
+        
+        .bgm-wrapper.minimized .toggle-player {
+            display: flex;
+        }
+    </style>
+</head>
+<body>
+    <div class="bgm-wrapper" id="bgmWrapper">
+        <div class="bgm-player"> 
+            <button class="minimize-btn" id="minimizeBtn" title="최소화">
+                <i class="fas fa-times"></i>
+            </button>
+            <img src="/api/placeholder/100/100" alt="Player Image" class="player-image" id="thumbnailImg">
+            <h3 class="player-title">🎧 ...</h3>
+            <div id="player"></div>
+            <div class="control-buttons">
+                <button class="control-btn" id="prevBtn" title="이전 곡/처음으로">
+                    <i class="fas fa-step-backward"></i>
+                </button>
+                <button class="control-btn play-pause-btn" id="playPauseBtn" title="재생/일시정지">
+                    <i class="fas fa-play play-icon"></i>
+                    <i class="fas fa-pause pause-icon"></i>
+                </button>
+                <button class="control-btn" id="nextBtn" title="다음 곡">
+                    <i class="fas fa-step-forward"></i>
+                </button>
+            </div>
+            <div class="volume-control">
+                <i class="fas fa-volume-down volume-icon"></i>
+                <input type="range" min="0" max="100" value="50" class="volume-slider" id="volumeSlider">
+                <i class="fas fa-volume-up volume-icon"></i>
+            </div>
+            <div class="song-info" id="songInfo">로딩 중...</div>
+        </div>
+        <button class="toggle-player" id="maximizeBtn" title="BGM 플레이어">
+            <i class="fas fa-music"></i>
+        </button>
+    </div>
+
+    <script>
+        // YouTube API 로드
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        
+        // 설정 
+        const YOUTUBE_PLAYLIST_ID = 'PL7zBETiJnfn6h1NNmoDNt56LISuwp_N3v';
+        const STORAGE_KEY = 'bgm_player_state';
+        
+        // 상태 관리
+        let playerState = {
+            isPlaying: false,
+            volume: 50,
+            currentTime: 0,
+            currentIndex: 0,
+            minimized: true
+        };
+        
+        let player;
+        let isPlayerReady = false;
+        
+        // 부모창과 통신하는 함수들
+        function sendMessageToParent(type, data) {
+            window.parent.postMessage({type, data}, '*');
+        }
+        
+        function loadStoredState() {
+            try {
+                const storedData = localStorage.getItem(STORAGE_KEY);
+                if (storedData) {
+                    const parsed = JSON.parse(storedData);
+                    playerState = {...playerState, ...parsed};
+                    
+                    // 볼륨 설정
+                    document.getElementById('volumeSlider').value = playerState.volume;
+                }
+                
+                // 항상 UI 상태 업데이트
+                updatePlayerMinimizedState();
+            } catch (e) {
+                console.error('State load error:', e);
+            }
+        }
+        
+        function updatePlayerMinimizedState() {
+            // 최소화 상태 적용
+            if (playerState.minimized) {
+                document.getElementById('bgmWrapper').classList.add('minimized');
+            } else {
+                document.getElementById('bgmWrapper').classList.remove('minimized');
+            }
+        }
+        
+        function savePlayerState() {
+            try {
+                if (player && player.getCurrentTime) {
+                    playerState.currentTime = player.getCurrentTime();
+                    if (player.getPlaylistIndex() !== null && player.getPlaylistIndex() !== undefined) {
+                        playerState.currentIndex = player.getPlaylistIndex();
+                    }
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(playerState));
+                    
+                    // 부모에게 상태 알림
+                    sendMessageToParent('stateUpdate', playerState);
+                }
+            } catch (e) {
+                console.error('State save error:', e);
+            }
+        }
+        
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', {
+                height: '0',
+                width: '0',
+                playerVars: {
+                    'playsinline': 1,
+                    'controls': 0
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
+                    'onError': onPlayerError
+                }
+            });
+        }
+        
+        function onPlayerReady(event) {
+            isPlayerReady = true;
+            console.log('YouTube 플레이어 준비됨');
+            
+            // 음소거 해제 및 볼륨 설정
+            player.unMute();
+            player.setVolume(playerState.volume);
+            
+            // 재생목록 로드
+            loadPlaylist();
+            
+            // 볼륨 변경 리스너
+            document.getElementById('volumeSlider').addEventListener('input', function(e) {
+                const volume = parseInt(e.target.value);
+                player.setVolume(volume);
+                playerState.volume = volume;
+                savePlayerState();
+            });
+            
+            // 상태 주기적으로 저장
+            setInterval(savePlayerState, 3000);
+            
+            // 재생/일시정지 버튼 업데이트
+            updatePlayPauseButton();
+        }
+        
+        function loadPlaylist() {
+            console.log('재생목록 로드: ', YOUTUBE_PLAYLIST_ID);
+            
+            player.loadPlaylist({
+                listType: 'playlist',
+                list: YOUTUBE_PLAYLIST_ID,
+                index: parseInt(playerState.currentIndex) || 0,
+                startSeconds: parseFloat(playerState.currentTime) || 0
+            });
+            
+            // 저장된 상태가 재생중이 아니라면 일시정지
+            if (!playerState.isPlaying) {
+                setTimeout(() => {
+                    player.pauseVideo();
+                }, 1000);
+            }
+            
+            // 곡 정보 업데이트
+            setTimeout(updateSongInfo, 1000);
+        }
+        
+        function onPlayerStateChange(event) {
+            console.log('플레이어 상태 변경: ', event.data);
+            
+            // 재생 상태 업데이트
+            playerState.isPlaying = event.data === YT.PlayerState.PLAYING;
+            updatePlayPauseButton();
+            
+            // 비디오가 변경될 때 현재 인덱스 업데이트
+            if (event.data === YT.PlayerState.PLAYING || event.data === YT.PlayerState.PAUSED) {
+                if (player.getPlaylistIndex() !== null && player.getPlaylistIndex() !== undefined) {
+                    playerState.currentIndex = player.getPlaylistIndex();
+                }
+                updateSongInfo();
+            }
+            
+            // 곡이 끝났을 때 처음 곡으로 돌아가기
+            if (event.data === YT.PlayerState.ENDED) {
+                player.playVideoAt(0);
+            }
+            
+            savePlayerState();
+        }
+        
+        function onPlayerError(event) {
+            console.log("YouTube 플레이어 오류: " + event.data);
+            // 오류 발생 시 다음 곡 재생 시도
+            player.nextVideo();
+        }
+        
+        function updateSongInfo() {
+            const songInfo = document.getElementById('songInfo');
+            if (player && player.getVideoData) {
+                const videoData = player.getVideoData();
+                if (videoData && videoData.title) {
+                    songInfo.textContent = videoData.title;
+                    document.querySelector('.player-title').textContent = '🎧 재생 중';
+                    updateSongThumbnail();
+                } else {
+                    setTimeout(updateSongInfo, 1000);
+                }
+            }
+        }
+        
+        function updateSongThumbnail() {
+            if (player && player.getVideoData) {
+                const videoData = player.getVideoData();
+                if (videoData && videoData.video_id) {
+                    const thumbnailUrl = `https://img.youtube.com/vi/${videoData.video_id}/mqdefault.jpg`;
+                    document.getElementById('thumbnailImg').src = thumbnailUrl;
+                } else {
+                    setTimeout(updateSongThumbnail, 1000);
+                }
+            }
+        }
+        
+        function updatePlayPauseButton() {
+            const playPauseBtn = document.getElementById('playPauseBtn');
+            if (playerState.isPlaying) {
+                playPauseBtn.classList.add('playing');
+            } else {
+                playPauseBtn.classList.remove('playing');
+            }
+        }
+        
+        // 이벤트 리스너 설정
+        window.addEventListener('load', function() {
+            console.log('페이지 로드됨');
+            
+            // 초기 상태 로드
+            loadStoredState();
+            
+            // 버튼 이벤트 등록
+            document.getElementById('playPauseBtn').addEventListener('click', function() {
+                console.log('재생/일시정지 버튼 클릭');
+                if (!player) return;
+                
+                if (playerState.isPlaying) {
+                    player.pauseVideo();
+                } else {
+                    player.playVideo();
+                }
+            });
+            
+            document.getElementById('prevBtn').addEventListener('click', function() {
+                console.log('이전 곡 버튼 클릭');
+                if (!player) return;
+                
+                if (player.getCurrentTime() > 3) {
+                    player.seekTo(0);
+                } else {
+                    player.previousVideo();
+                }
+            });
+            
+            document.getElementById('nextBtn').addEventListener('click', function() {
+                console.log('다음 곡 버튼 클릭');
+                if (!player) return;
+                
+                player.nextVideo();
+            });
+            
+            document.getElementById('minimizeBtn').addEventListener('click', function() {
+                console.log('최소화 버튼 클릭');
+                playerState.minimized = true;
+                updatePlayerMinimizedState();
+                savePlayerState();
+            });
+            
+            document.getElementById('maximizeBtn').addEventListener('click', function() {
+                console.log('최대화 버튼 클릭');
+                playerState.minimized = false;
+                updatePlayerMinimizedState();
+                savePlayerState();
+            });
+        });
+        
+        // 메시지 리스너 (부모에서 오는 명령 처리)
+        window.addEventListener('message', function(event) {
+            if (!event.data || !event.data.type) return;
+            
+            console.log('메시지 수신: ', event.data.type);
+            
+            switch(event.data.type) {
+                case 'getState':
+                    sendMessageToParent('stateUpdate', playerState);
+                    break;
+                case 'playPause':
+                    if (playerState.isPlaying) {
+                        player.pauseVideo();
+                    } else {
+                        player.playVideo();
+                    }
+                    break;
+                case 'next':
+                    player.nextVideo();
+                    break;
+                case 'prev':
+                    if (player.getCurrentTime() > 3) {
+                        player.seekTo(0);
+                    } else {
+                        player.previousVideo();
+                    }
+                    break;
+                case 'setVolume':
+                    player.setVolume(event.data.volume);
+                    playerState.volume = event.data.volume;
+                    document.getElementById('volumeSlider').value = event.data.volume;
+                    savePlayerState();
+                    break;
+            }
+        });
+    </script>
+</body>
+</html>
